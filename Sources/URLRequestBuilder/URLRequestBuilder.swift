@@ -61,6 +61,17 @@ public struct URLRequestBuilder {
         makeRequest(withPath: endpoint.path, baseURL: baseURL, method: method, queryItems: queryItems, bodyParams: bodyParams, headerFields: headerFields, transformers: transformers, completion: completion)
     }
 
+    public static func makeRequest(withEndpoint endpoint: Endpoint,
+                                   baseURL: URL,
+                                   method: HTTPMethod = .GET,
+                                   queryItems: [String: String]? = nil,
+                                   bodyData: Data? = nil,
+                                   headerFields: [String: String]? = nil,
+                                   transformers: [URLRequestTransforming]? = nil,
+                                   completion: @escaping URLRequestBuilderCompletion) {
+        makeRequest(withPath: endpoint.path, baseURL: baseURL, method: method, queryItems: queryItems, bodyData: bodyData, headerFields: headerFields, transformers: transformers, completion: completion)
+    }
+
     public static func makeRequest(withPath path: String,
                                    baseURL: URL,
                                    method: HTTPMethod = .GET,
@@ -74,6 +85,21 @@ public struct URLRequestBuilder {
             return
         }
         makeRequest(withURL: url, method: method, queryItems: queryItems, bodyParams: bodyParams, headerFields: headerFields, transformers: transformers, completion: completion)
+    }
+
+    public static func makeRequest(withPath path: String,
+                                   baseURL: URL,
+                                   method: HTTPMethod = .GET,
+                                   queryItems: [String: String]? = nil,
+                                   bodyData: Data? = nil,
+                                   headerFields: [String: String]? = nil,
+                                   transformers: [URLRequestTransforming]? = nil,
+                                   completion: @escaping URLRequestBuilderCompletion) {
+        guard let url = URL(string: path, relativeTo: baseURL) else {
+            completion(.failure(URLRequestBuilderError.failedToCreateURL))
+            return
+        }
+        makeRequest(withURL: url, method: method, queryItems: queryItems, bodyData: bodyData, headerFields: headerFields, transformers: transformers, completion: completion)
     }
 
     public static func makeRequest(withFullURLString urlString: String,
@@ -90,6 +116,20 @@ public struct URLRequestBuilder {
         makeRequest(withURL: url, method: method, queryItems: queryItems, bodyParams: bodyParams, headerFields: headerFields, transformers: transformers, completion: completion)
     }
 
+    public static func makeRequest(withFullURLString urlString: String,
+                                   method: HTTPMethod = .GET,
+                                   queryItems: [String: String]? = nil,
+                                   bodyData: Data? = nil,
+                                   headerFields: [String: String]? = nil,
+                                   transformers: [URLRequestTransforming]? = nil,
+                                   completion: @escaping URLRequestBuilderCompletion) {
+        guard let url = URL(string: urlString) else {
+            completion(.failure(URLRequestBuilderError.failedToCreateURL))
+            return
+        }
+        makeRequest(withURL: url, method: method, queryItems: queryItems, bodyData: bodyData, headerFields: headerFields, transformers: transformers, completion: completion)
+    }
+
     public static func makeRequest(withURL url: URL,
                                    method: HTTPMethod = .GET,
                                    queryItems: [String: String]? = nil,
@@ -104,10 +144,46 @@ public struct URLRequestBuilder {
         makeRequest(withComponents: components, method: method, queryItems: queryItems, bodyParams: bodyParams, headerFields: headerFields, transformers: transformers, completion: completion)
     }
 
+    public static func makeRequest(withURL url: URL,
+                                   method: HTTPMethod = .GET,
+                                   queryItems: [String: String]? = nil,
+                                   bodyData: Data? = nil,
+                                   headerFields: [String: String]? = nil,
+                                   transformers: [URLRequestTransforming]? = nil,
+                                   completion: @escaping URLRequestBuilderCompletion) {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else {
+            completion(.failure(URLRequestBuilderError.failedToCreateURL))
+            return
+        }
+        makeRequest(withComponents: components, method: method, queryItems: queryItems, bodyData: bodyData, headerFields: headerFields, transformers: transformers, completion: completion)
+    }
+
+    // MARK: Primitive Methods
+
     public static func makeRequest(withComponents components: URLComponents,
                                    method: HTTPMethod = .GET,
                                    queryItems: [String: String]? = nil,
                                    bodyParams: [String: String]? = nil,
+                                   headerFields: [String: String]? = nil,
+                                   transformers: [URLRequestTransforming]? = nil,
+                                   completion: @escaping URLRequestBuilderCompletion) {
+        var bodyData: Data?
+        if let bodyParams = bodyParams {
+            do {
+                bodyData = try JSONSerialization.data(withJSONObject: bodyParams)
+            } catch {
+                completion(.failure(error))
+                return
+            }
+        }
+
+        makeRequest(withComponents: components, method: method, queryItems: queryItems, bodyData: bodyData, headerFields: headerFields, transformers: transformers, completion: completion)
+    }
+
+    public static func makeRequest(withComponents components: URLComponents,
+                                   method: HTTPMethod = .GET,
+                                   queryItems: [String: String]? = nil,
+                                   bodyData: Data? = nil,
                                    headerFields: [String: String]? = nil,
                                    transformers: [URLRequestTransforming]? = nil,
                                    completion: @escaping URLRequestBuilderCompletion) {
@@ -126,16 +202,7 @@ public struct URLRequestBuilder {
 
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
-
-        if let bodyParams = bodyParams {
-            do {
-                let data = try JSONSerialization.data(withJSONObject: bodyParams)
-                request.httpBody = data
-            } catch {
-                completion(.failure(error))
-                return
-            }
-        }
+        request.httpBody = bodyData
 
         headerFields?.forEach {
             request.addValue($0.value, forHTTPHeaderField: $0.key)
