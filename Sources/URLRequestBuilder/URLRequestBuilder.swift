@@ -28,13 +28,15 @@ import Foundation
 
 // MARK: - HTTPMethod
 public enum HTTPMethod: String {
-    case GET
-    case POST
-    case PUT
+    case CONNECT
     case DELETE
+    case GET
     case HEAD
     case OPTIONS
-    case CONNECT
+    case PATCH
+    case POST
+    case PUT
+    case TRACE
 }
 
 // MARK: - URLRequestBuilderError
